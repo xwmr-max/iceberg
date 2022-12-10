@@ -105,4 +105,12 @@ public class FlinkReadOptions {
   public static final String LIMIT = "limit";
   public static final ConfigOption<Long> LIMIT_OPTION =
       ConfigOptions.key(PREFIX + LIMIT).longType().defaultValue(-1L);
+
+  public static final String LOOKUP_CACHE_MAX_ROWS = "lookup-join-cache-size";
+  public static final ConfigOption<Long> LOOKUP_CACHE_MAX_ROWS_OPTION =
+      ConfigOptions.key(PREFIX + LOOKUP_CACHE_MAX_ROWS).longType().defaultValue(-1L);
+
+  public static final String LOOKUP_CACHE_TTL = "lookup-join-cache-ttl";
+  public static final ConfigOption<Long> LOOKUP_CACHE_TTL_OPTION =
+      ConfigOptions.key(PREFIX + LOOKUP_CACHE_TTL).longType().defaultValue(-1L);
 }
