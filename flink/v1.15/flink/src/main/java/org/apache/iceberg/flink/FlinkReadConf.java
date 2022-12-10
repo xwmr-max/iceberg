@@ -145,6 +145,24 @@ public class FlinkReadConf {
         .parse();
   }
 
+  public long cacheMaxSize() {
+    return confParser
+        .longConf()
+        .option(FlinkReadOptions.LOOKUP_CACHE_MAX_ROWS)
+        .flinkConfig(FlinkReadOptions.LOOKUP_CACHE_MAX_ROWS_OPTION)
+        .defaultValue(FlinkReadOptions.LOOKUP_CACHE_MAX_ROWS_OPTION.defaultValue())
+        .parse();
+  }
+
+  public long cacheExpireMs() {
+    return confParser
+        .longConf()
+        .option(FlinkReadOptions.LOOKUP_CACHE_TTL)
+        .flinkConfig(FlinkReadOptions.LOOKUP_CACHE_MAX_ROWS_OPTION)
+        .defaultValue(FlinkReadOptions.LOOKUP_CACHE_MAX_ROWS_OPTION.defaultValue())
+        .parse();
+  }
+
   public String nameMapping() {
     return confParser.stringConf().option(TableProperties.DEFAULT_NAME_MAPPING).parseOptional();
   }
