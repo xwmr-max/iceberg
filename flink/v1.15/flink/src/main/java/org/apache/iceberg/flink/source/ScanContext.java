@@ -60,6 +60,8 @@ public class ScanContext implements Serializable {
   private final boolean includeColumnStats;
   private final Integer planParallelism;
   private final int maxPlanningSnapshotCount;
+  private final Long cacheMaxSize;
+  private final Long cacheExpireMs;
 
   private ScanContext(
       boolean caseSensitive,
@@ -81,7 +83,9 @@ public class ScanContext implements Serializable {
       boolean includeColumnStats,
       boolean exposeLocality,
       Integer planParallelism,
-      int maxPlanningSnapshotCount) {
+      int maxPlanningSnapshotCount,
+      Long cacheMaxSize,
+      Long cacheExpireMs) {
     this.caseSensitive = caseSensitive;
     this.snapshotId = snapshotId;
     this.startingStrategy = startingStrategy;
@@ -103,6 +107,8 @@ public class ScanContext implements Serializable {
     this.exposeLocality = exposeLocality;
     this.planParallelism = planParallelism;
     this.maxPlanningSnapshotCount = maxPlanningSnapshotCount;
+    this.cacheMaxSize = cacheMaxSize;
+    this.cacheExpireMs = cacheExpireMs;
 
     validate();
   }
@@ -130,6 +136,14 @@ public class ScanContext implements Serializable {
 
   public boolean caseSensitive() {
     return caseSensitive;
+  }
+
+  Long cacheMaxSize() {
+    return cacheMaxSize;
+  }
+
+  Long cacheExpireMs() {
+    return cacheExpireMs;
   }
 
   public Long snapshotId() {
@@ -228,6 +242,33 @@ public class ScanContext implements Serializable {
         .exposeLocality(exposeLocality)
         .planParallelism(planParallelism)
         .maxPlanningSnapshotCount(maxPlanningSnapshotCount)
+        .cacheMaxSize(cacheMaxSize)
+        .cacheExpireMs(cacheExpireMs)
+        .build();
+  }
+
+  ScanContext copyWithFilters(List<Expression> newFilters) {
+    return ScanContext.builder()
+        .caseSensitive(caseSensitive)
+        .useSnapshotId(snapshotId)
+        .startSnapshotId(null)
+        .endSnapshotId(null)
+        .asOfTimestamp(null)
+        .splitSize(splitSize)
+        .splitLookback(splitLookback)
+        .splitOpenFileCost(splitOpenFileCost)
+        .streaming(isStreaming)
+        .monitorInterval(monitorInterval)
+        .nameMapping(nameMapping)
+        .project(schema)
+        .filters(newFilters)
+        .limit(limit)
+        .includeColumnStats(includeColumnStats)
+        .exposeLocality(exposeLocality)
+        .planParallelism(planParallelism)
+        .maxPlanningSnapshotCount(maxPlanningSnapshotCount)
+        .cacheMaxSize(cacheMaxSize)
+        .cacheExpireMs(cacheExpireMs)
         .build();
   }
 
@@ -251,6 +292,8 @@ public class ScanContext implements Serializable {
         .exposeLocality(exposeLocality)
         .planParallelism(planParallelism)
         .maxPlanningSnapshotCount(maxPlanningSnapshotCount)
+        .cacheMaxSize(cacheMaxSize)
+        .cacheExpireMs(cacheExpireMs)
         .build();
   }
 
@@ -284,6 +327,8 @@ public class ScanContext implements Serializable {
         FlinkConfigOptions.TABLE_EXEC_ICEBERG_WORKER_POOL_SIZE.defaultValue();
     private int maxPlanningSnapshotCount =
         FlinkReadOptions.MAX_PLANNING_SNAPSHOT_COUNT_OPTION.defaultValue();
+    private long cacheMaxSize = FlinkReadOptions.LOOKUP_CACHE_MAX_ROWS_OPTION.defaultValue();
+    private long cacheExpireMs = FlinkReadOptions.LOOKUP_CACHE_TTL_OPTION.defaultValue();
 
     private Builder() {}
 
@@ -387,6 +432,16 @@ public class ScanContext implements Serializable {
       return this;
     }
 
+    public Builder cacheMaxSize(Long newCacheMaxSize) {
+      this.cacheMaxSize = newCacheMaxSize;
+      return this;
+    }
+
+    public Builder cacheExpireMs(Long newCacheExpireMs) {
+      this.cacheExpireMs = newCacheExpireMs;
+      return this;
+    }
+
     public Builder resolveConfig(
         Table table, Map<String, String> readOptions, ReadableConfig readableConfig) {
       FlinkReadConf flinkReadConf = new FlinkReadConf(table, readOptions, readableConfig);
@@ -407,7 +462,9 @@ public class ScanContext implements Serializable {
           .limit(flinkReadConf.limit())
           .planParallelism(flinkReadConf.workerPoolSize())
           .includeColumnStats(flinkReadConf.includeColumnStats())
-          .maxPlanningSnapshotCount(flinkReadConf.maxPlanningSnapshotCount());
+          .maxPlanningSnapshotCount(flinkReadConf.maxPlanningSnapshotCount())
+          .cacheMaxSize(flinkReadConf.cacheMaxSize())
+          .cacheExpireMs(flinkReadConf.cacheExpireMs());
     }
 
     public ScanContext build() {
@@ -431,7 +488,9 @@ public class ScanContext implements Serializable {
           includeColumnStats,
           exposeLocality,
           planParallelism,
-          maxPlanningSnapshotCount);
+          maxPlanningSnapshotCount,
+          cacheMaxSize,
+          cacheExpireMs);
     }
   }
 }
