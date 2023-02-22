@@ -61,7 +61,11 @@ from pyiceberg.expressions import (
 from pyiceberg.expressions.literals import Literal, literal
 from pyiceberg.expressions.visitors import _from_byte_buffer
 from pyiceberg.schema import Accessor, Schema
+from pyiceberg.typedef import Record
 from pyiceberg.types import (
+    BinaryType,
+    BooleanType,
+    DecimalType,
     DoubleType,
     FloatType,
     IntegerType,
@@ -69,9 +73,32 @@ from pyiceberg.types import (
     LongType,
     NestedField,
     StringType,
+    StructType,
+    UUIDType,
 )
-from tests.conftest import FooStruct
-from tests.expressions.test_visitors import ExpressionA, ExpressionB
+from pyiceberg.utils.singleton import Singleton
+
+
+class ExpressionA(BooleanExpression, Singleton):
+    def __invert__(self) -> BooleanExpression:
+        return ExpressionB()
+
+    def __repr__(self) -> str:
+        return "ExpressionA()"
+
+    def __str__(self) -> str:
+        return "testexpra"
+
+
+class ExpressionB(BooleanExpression, Singleton):
+    def __invert__(self) -> BooleanExpression:
+        return ExpressionA()
+
+    def __repr__(self) -> str:
+        return "ExpressionB()"
+
+    def __str__(self) -> str:
+        return "testexprb"
 
 
 def test_isnull_inverse() -> None:
@@ -580,36 +607,53 @@ def test_invert_always() -> None:
     assert ~AlwaysTrue() == AlwaysFalse()
 
 
-def test_accessor_base_class(foo_struct: FooStruct) -> None:
+def test_accessor_base_class() -> None:
     """Test retrieving a value at a position of a container using an accessor"""
+
+    struct = Record(
+        struct=StructType(
+            NestedField(1, "a", StringType()),
+            NestedField(2, "b", StringType()),
+            NestedField(3, "c", StringType()),
+            NestedField(4, "d", IntegerType()),
+            NestedField(5, "e", IntegerType()),
+            NestedField(6, "f", IntegerType()),
+            NestedField(7, "g", FloatType()),
+            NestedField(8, "h", DecimalType(8, 4)),
+            NestedField(9, "i", UUIDType()),
+            NestedField(10, "j", BooleanType()),
+            NestedField(11, "k", BooleanType()),
+            NestedField(12, "l", BinaryType()),
+        )
+    )
 
     uuid_value = uuid.uuid4()
 
-    foo_struct.set(0, "foo")
-    foo_struct.set(1, "bar")
-    foo_struct.set(2, "baz")
-    foo_struct.set(3, 1)
-    foo_struct.set(4, 2)
-    foo_struct.set(5, 3)
-    foo_struct.set(6, 1.234)
-    foo_struct.set(7, Decimal("1.234"))
-    foo_struct.set(8, uuid_value)
-    foo_struct.set(9, True)
-    foo_struct.set(10, False)
-    foo_struct.set(11, b"\x19\x04\x9e?")
+    struct[0] = "foo"
+    struct[1] = "bar"
+    struct[2] = "baz"
+    struct[3] = 1
+    struct[4] = 2
+    struct[5] = 3
+    struct[6] = 1.234
+    struct[7] = Decimal("1.234")
+    struct[8] = uuid_value
+    struct[9] = True
+    struct[10] = False
+    struct[11] = b"\x19\x04\x9e?"
 
-    assert Accessor(position=0).get(foo_struct) == "foo"
-    assert Accessor(position=1).get(foo_struct) == "bar"
-    assert Accessor(position=2).get(foo_struct) == "baz"
-    assert Accessor(position=3).get(foo_struct) == 1
-    assert Accessor(position=4).get(foo_struct) == 2
-    assert Accessor(position=5).get(foo_struct) == 3
-    assert Accessor(position=6).get(foo_struct) == 1.234
-    assert Accessor(position=7).get(foo_struct) == Decimal("1.234")
-    assert Accessor(position=8).get(foo_struct) == uuid_value
-    assert Accessor(position=9).get(foo_struct) is True
-    assert Accessor(position=10).get(foo_struct) is False
-    assert Accessor(position=11).get(foo_struct) == b"\x19\x04\x9e?"
+    assert Accessor(position=0).get(struct) == "foo"
+    assert Accessor(position=1).get(struct) == "bar"
+    assert Accessor(position=2).get(struct) == "baz"
+    assert Accessor(position=3).get(struct) == 1
+    assert Accessor(position=4).get(struct) == 2
+    assert Accessor(position=5).get(struct) == 3
+    assert Accessor(position=6).get(struct) == 1.234
+    assert Accessor(position=7).get(struct) == Decimal("1.234")
+    assert Accessor(position=8).get(struct) == uuid_value
+    assert Accessor(position=9).get(struct) is True
+    assert Accessor(position=10).get(struct) is False
+    assert Accessor(position=11).get(struct) == b"\x19\x04\x9e?"
 
 
 @pytest.fixture
@@ -876,15 +920,17 @@ def test_less_than_or_equal() -> None:
     assert less_than_or_equal == eval(repr(less_than_or_equal))
 
 
-def test_bound_reference_eval(table_schema_simple: Schema, foo_struct: FooStruct) -> None:
+def test_bound_reference_eval(table_schema_simple: Schema) -> None:
     """Test creating a BoundReference and evaluating it on a StructProtocol"""
-    foo_struct.set(pos=1, value="foovalue")
-    foo_struct.set(pos=2, value=123)
-    foo_struct.set(pos=3, value=True)
+    struct = Record(struct=table_schema_simple.as_struct())
 
-    position1_accessor = Accessor(position=1)
-    position2_accessor = Accessor(position=2)
-    position3_accessor = Accessor(position=3)
+    struct[0] = "foovalue"
+    struct[1] = 123
+    struct[2] = True
+
+    position1_accessor = Accessor(position=0)
+    position2_accessor = Accessor(position=1)
+    position3_accessor = Accessor(position=2)
 
     field1 = table_schema_simple.find_field(1)
     field2 = table_schema_simple.find_field(2)
@@ -894,9 +940,9 @@ def test_bound_reference_eval(table_schema_simple: Schema, foo_struct: FooStruct
     bound_ref2 = BoundReference(field=field2, accessor=position2_accessor)
     bound_ref3 = BoundReference(field=field3, accessor=position3_accessor)
 
-    assert bound_ref1.eval(foo_struct) == "foovalue"
-    assert bound_ref2.eval(foo_struct) == 123
-    assert bound_ref3.eval(foo_struct) is True
+    assert bound_ref1.eval(struct) == "foovalue"
+    assert bound_ref2.eval(struct) == 123
+    assert bound_ref3.eval(struct) is True
 
 
 def test_non_primitive_from_byte_buffer() -> None:

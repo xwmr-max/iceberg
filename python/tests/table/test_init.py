@@ -25,10 +25,11 @@ from pyiceberg.expressions import (
     EqualTo,
     In,
 )
-from pyiceberg.io import load_file_io
+from pyiceberg.io import PY_IO_IMPL, load_file_io
+from pyiceberg.manifest import DataFile, ManifestContent
 from pyiceberg.partitioning import PartitionField, PartitionSpec
 from pyiceberg.schema import Schema
-from pyiceberg.table import Table
+from pyiceberg.table import StaticTable, Table, _check_content
 from pyiceberg.table.metadata import TableMetadataV2
 from pyiceberg.table.snapshots import (
     Operation,
@@ -43,6 +44,7 @@ from pyiceberg.table.sorting import (
     SortOrder,
 )
 from pyiceberg.transforms import BucketTransform, IdentityTransform
+from pyiceberg.typedef import Record
 from pyiceberg.types import LongType, NestedField
 
 
@@ -55,6 +57,11 @@ def table(example_table_metadata_v2: Dict[str, Any]) -> Table:
         metadata_location=f"{table_metadata.location}/uuid.metadata.json",
         io=load_file_io(),
     )
+
+
+@pytest.fixture
+def static_table(metadata_location: str) -> StaticTable:
+    return StaticTable.from_metadata(metadata_location)
 
 
 def test_schema(table: Table) -> None:
@@ -243,3 +250,33 @@ def test_table_scan_projection_unknown_column(table: Table) -> None:
         _ = scan.select("a").projection()
 
     assert "Could not find column: 'a'" in str(exc_info.value)
+
+
+def test_check_content_deletes() -> None:
+    with pytest.raises(ValueError) as exc_info:
+        _check_content(
+            DataFile(
+                content=ManifestContent.DELETES,
+            )
+        )
+    assert "PyIceberg does not support deletes: https://github.com/apache/iceberg/issues/6568" in str(exc_info.value)
+
+
+def test_check_content_data() -> None:
+    manifest_file = DataFile(content=ManifestContent.DATA)
+    assert _check_content(manifest_file) == manifest_file
+
+
+def test_check_content_missing_attr() -> None:
+    r = Record(*([None] * 15))
+    assert _check_content(r) == r  # type: ignore
+
+
+def test_static_table_same_as_table(table: Table, static_table: StaticTable) -> None:
+    assert isinstance(static_table, Table)
+    assert static_table.metadata == table.metadata
+
+
+def test_static_table_io_does_not_exist(metadata_location: str) -> None:
+    with pytest.raises(ValueError):
+        StaticTable.from_metadata(metadata_location, {PY_IO_IMPL: "pyiceberg.does.not.exist.FileIO"})

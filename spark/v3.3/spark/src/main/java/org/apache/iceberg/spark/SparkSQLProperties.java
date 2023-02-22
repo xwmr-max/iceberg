@@ -42,4 +42,12 @@ public class SparkSQLProperties {
   // Controls whether to check the order of fields during writes
   public static final String CHECK_ORDERING = "spark.sql.iceberg.check-ordering";
   public static final boolean CHECK_ORDERING_DEFAULT = true;
+
+  // Controls whether to preserve the existing grouping of data while planning splits
+  public static final String PRESERVE_DATA_GROUPING =
+      "spark.sql.iceberg.planning.preserve-data-grouping";
+  public static final boolean PRESERVE_DATA_GROUPING_DEFAULT = false;
+
+  // Controls write distribution mode
+  public static final String DISTRIBUTION_MODE = "spark.sql.iceberg.distribution-mode";
 }

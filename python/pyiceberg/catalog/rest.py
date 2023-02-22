@@ -57,8 +57,7 @@ from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC, PartitionSpec
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table, TableMetadata
 from pyiceberg.table.sorting import UNSORTED_SORT_ORDER, SortOrder
-from pyiceberg.typedef import EMPTY_DICT
-from pyiceberg.utils.iceberg_base_model import IcebergBaseModel
+from pyiceberg.typedef import EMPTY_DICT, IcebergBaseModel
 
 ICEBERG_REST_SPEC_VERSION = "0.14.1"
 
@@ -176,11 +175,7 @@ class RestCatalog(Catalog):
     session: Session
     properties: Properties
 
-    def __init__(
-        self,
-        name: str,
-        **properties: str,
-    ):
+    def __init__(self, name: str, **properties: str):
         """Rest Catalog
 
         You either need to provide a client_id and client_secret, or an already valid token.

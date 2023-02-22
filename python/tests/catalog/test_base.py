@@ -14,6 +14,7 @@
 #  KIND, either express or implied.  See the License for the
 #  specific language governing permissions and limitations
 #  under the License.
+# pylint:disable=redefined-outer-name
 
 from typing import (
     Dict,
@@ -42,10 +43,10 @@ from pyiceberg.io import load_file_io
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC, PartitionField, PartitionSpec
 from pyiceberg.schema import Schema
 from pyiceberg.table import Table
+from pyiceberg.table.metadata import TableMetadataV1
 from pyiceberg.table.sorting import UNSORTED_SORT_ORDER, SortOrder
 from pyiceberg.transforms import IdentityTransform
 from pyiceberg.typedef import EMPTY_DICT
-from tests.table.test_metadata import EXAMPLE_TABLE_METADATA_V1
 
 
 class InMemoryCatalog(Catalog):
@@ -68,7 +69,6 @@ class InMemoryCatalog(Catalog):
         sort_order: SortOrder = UNSORTED_SORT_ORDER,
         properties: Properties = EMPTY_DICT,
     ) -> Table:
-
         identifier = Catalog.identifier_to_tuple(identifier)
         namespace = Catalog.namespace_from(identifier)
 
@@ -80,7 +80,27 @@ class InMemoryCatalog(Catalog):
 
             table = Table(
                 identifier=identifier,
-                metadata=EXAMPLE_TABLE_METADATA_V1,
+                metadata=TableMetadataV1(
+                    **{
+                        "format-version": 1,
+                        "table-uuid": "d20125c8-7284-442c-9aea-15fee620737c",
+                        "location": "s3://bucket/test/location",
+                        "last-updated-ms": 1602638573874,
+                        "last-column-id": 3,
+                        "schema": {
+                            "type": "struct",
+                            "fields": [
+                                {"id": 1, "name": "x", "required": True, "type": "long"},
+                                {"id": 2, "name": "y", "required": True, "type": "long", "doc": "comment"},
+                                {"id": 3, "name": "z", "required": True, "type": "long"},
+                            ],
+                        },
+                        "partition-spec": [{"name": "x", "transform": "identity", "source-id": 1, "field-id": 1000}],
+                        "properties": {},
+                        "current-snapshot-id": -1,
+                        "snapshots": [{"snapshot-id": 1925, "timestamp-ms": 1602638573822}],
+                    }
+                ),
                 metadata_location=f's3://warehouse/{"/".join(identifier)}/metadata/metadata.json',
                 io=load_file_io(),
             )
@@ -184,6 +204,11 @@ class InMemoryCatalog(Catalog):
         return PropertiesUpdateSummary(
             removed=list(removed or []), updated=list(updates.keys() if updates else []), missing=list(expected_to_change)
         )
+
+
+@pytest.fixture
+def catalog() -> InMemoryCatalog:
+    return InMemoryCatalog("test.in.memory.catalog", **{"test.key": "test.value"})
 
 
 TEST_TABLE_IDENTIFIER = ("com", "organization", "department", "my_table")

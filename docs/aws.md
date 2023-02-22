@@ -68,6 +68,7 @@ done
 
 # start Spark SQL client shell
 spark-sql --packages $DEPENDENCIES \
+    --conf spark.sql.defaultCatalog=my_catalog \
     --conf spark.sql.catalog.my_catalog=org.apache.iceberg.spark.SparkCatalog \
     --conf spark.sql.catalog.my_catalog.warehouse=s3://my-bucket/my/key/prefix \
     --conf spark.sql.catalog.my_catalog.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog \
@@ -676,6 +677,13 @@ install_dependencies () {
 install_dependencies $LIB_PATH $ICEBERG_MAVEN_URL $ICEBERG_VERSION "${ICEBERG_PACKAGES[@]}"
 install_dependencies $LIB_PATH $AWS_MAVEN_URL $AWS_SDK_VERSION "${AWS_PACKAGES[@]}"
 ```
+
+### AWS Glue
+
+[AWS Glue](https://aws.amazon.com/glue/) provides a serverless data integration service
+that could be used to perform read, write, update tasks against Iceberg tables.
+More details could be found [here](https://docs.aws.amazon.com/glue/latest/dg/aws-glue-programming-etl-format-iceberg.html).
+
 
 ### AWS EKS
 

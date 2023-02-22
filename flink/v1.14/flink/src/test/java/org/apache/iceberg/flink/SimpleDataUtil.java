@@ -125,6 +125,7 @@ public class SimpleDataUtil {
   }
 
   public static DataFile writeFile(
+      Table table,
       Schema schema,
       PartitionSpec spec,
       Configuration conf,
@@ -138,7 +139,8 @@ public class SimpleDataUtil {
 
     RowType flinkSchema = FlinkSchemaUtil.convert(schema);
     FileAppenderFactory<RowData> appenderFactory =
-        new FlinkAppenderFactory(schema, flinkSchema, ImmutableMap.of(), spec);
+        new FlinkAppenderFactory(
+            table, schema, flinkSchema, ImmutableMap.of(), spec, null, null, null);
 
     FileAppender<RowData> appender = appenderFactory.newAppender(fromPath(path, conf), fileFormat);
     try (FileAppender<RowData> closeableAppender = appender) {
@@ -154,13 +156,14 @@ public class SimpleDataUtil {
   public static DeleteFile writeEqDeleteFile(
       Table table,
       FileFormat format,
-      String tablePath,
       String filename,
       FileAppenderFactory<RowData> appenderFactory,
       List<RowData> deletes)
       throws IOException {
     EncryptedOutputFile outputFile =
-        table.encryption().encrypt(fromPath(new Path(tablePath, filename), new Configuration()));
+        table
+            .encryption()
+            .encrypt(fromPath(new Path(table.location(), filename), new Configuration()));
 
     EqualityDeleteWriter<RowData> eqWriter =
         appenderFactory.newEqDeleteWriter(outputFile, format, null);
@@ -173,13 +176,14 @@ public class SimpleDataUtil {
   public static DeleteFile writePosDeleteFile(
       Table table,
       FileFormat format,
-      String tablePath,
       String filename,
       FileAppenderFactory<RowData> appenderFactory,
       List<Pair<CharSequence, Long>> positions)
       throws IOException {
     EncryptedOutputFile outputFile =
-        table.encryption().encrypt(fromPath(new Path(tablePath, filename), new Configuration()));
+        table
+            .encryption()
+            .encrypt(fromPath(new Path(table.location(), filename), new Configuration()));
 
     PositionDeleteWriter<RowData> posWriter =
         appenderFactory.newPosDeleteWriter(outputFile, format, null);
@@ -222,7 +226,7 @@ public class SimpleDataUtil {
     return records;
   }
 
-  private static boolean equalsRecords(List<Record> expected, List<Record> actual, Schema schema) {
+  public static boolean equalsRecords(List<Record> expected, List<Record> actual, Schema schema) {
     if (expected.size() != actual.size()) {
       return false;
     }
@@ -234,8 +238,7 @@ public class SimpleDataUtil {
     return expectedSet.equals(actualSet);
   }
 
-  private static void assertRecordsEqual(
-      List<Record> expected, List<Record> actual, Schema schema) {
+  public static void assertRecordsEqual(List<Record> expected, List<Record> actual, Schema schema) {
     Assert.assertEquals(expected.size(), actual.size());
     Types.StructType type = schema.asStruct();
     StructLikeSet expectedSet = StructLikeSet.create(type);

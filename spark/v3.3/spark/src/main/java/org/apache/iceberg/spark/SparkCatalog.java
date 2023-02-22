@@ -37,6 +37,7 @@ import org.apache.iceberg.EnvironmentContext;
 import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.MetadataTableType;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.SnapshotRef;
 import org.apache.iceberg.Transaction;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -159,7 +160,15 @@ public class SparkCatalog extends BaseCatalog {
           sparkTable.snapshotId() == null,
           "Cannot do time-travel based on both table identifier and AS OF");
 
-      return sparkTable.copyWithSnapshotId(Long.parseLong(version));
+      try {
+        return sparkTable.copyWithSnapshotId(Long.parseLong(version));
+      } catch (NumberFormatException e) {
+        SnapshotRef ref = sparkTable.table().refs().get(version);
+        ValidationException.check(
+            ref != null,
+            "Cannot find matching snapshot ID or reference name for version " + version);
+        return sparkTable.copyWithSnapshotId(ref.snapshotId());
+      }
 
     } else if (table instanceof SparkChangelogTable) {
       throw new UnsupportedOperationException("AS OF is not supported for changelogs");
@@ -326,9 +335,8 @@ public class SparkCatalog extends BaseCatalog {
       boolean dropped = dropTableWithoutPurging(ident);
 
       if (dropped) {
-        // We should check whether the metadata file exists. Because the HadoopCatalog/HadoopTables
-        // will drop the
-        // warehouse directly and ignore the `purge` argument.
+        // check whether the metadata file exists because HadoopCatalog/HadoopTables
+        // will drop the warehouse directly and ignore the `purge` argument
         boolean metadataFileExists = table.io().newInputFile(metadataFileLocation).exists();
 
         if (metadataFileExists) {
@@ -553,8 +561,7 @@ public class SparkCatalog extends BaseCatalog {
       List<TableChange> propertyChanges,
       List<TableChange> schemaChanges) {
     // don't allow setting the snapshot and picking a commit at the same time because order is
-    // ambiguous and choosing
-    // one order leads to different results
+    // ambiguous and choosing one order leads to different results
     Preconditions.checkArgument(
         setSnapshotId == null || pickSnapshotId == null,
         "Cannot set the current the current snapshot ID and cherry-pick snapshot changes");

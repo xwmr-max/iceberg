@@ -25,6 +25,7 @@ import struct
 from abc import ABC, abstractmethod
 from decimal import ROUND_HALF_UP, Decimal
 from functools import singledispatchmethod
+from math import isnan
 from typing import Any, Generic, Type
 from uuid import UUID
 
@@ -65,6 +66,8 @@ class Literal(Generic[L], ABC):
     def __init__(self, value: L, value_type: Type[L]):
         if value is None or not isinstance(value, value_type):
             raise TypeError(f"Invalid literal value: {value!r} (not a {value_type})")
+        if isinstance(value, float) and isnan(value):
+            raise ValueError("Cannot create expression literal from NaN.")
         self._value = value
 
     @property
@@ -108,10 +111,10 @@ class Literal(Generic[L], ABC):
 
 def literal(value: L) -> Literal[L]:
     """
-    A generic Literal factory to construct an iceberg Literal based on python primitive data type
+    A generic Literal factory to construct an Iceberg Literal based on Python primitive data type
 
     Args:
-        value(python primitive type): the value to be associated with literal
+        value(Python primitive type): the value to be associated with literal
 
     Example:
         from pyiceberg.expressions.literals import literal
@@ -417,6 +420,10 @@ class TimestampLiteral(Literal[int]):
     def _(self, _: TimestampType) -> Literal[int]:
         return self
 
+    @to.register(TimestamptzType)
+    def _(self, _: TimestamptzType) -> Literal[int]:
+        return self
+
     @to.register(DateType)
     def _(self, _: DateType) -> Literal[int]:
         return DateLiteral(micros_to_days(self.value))
@@ -554,6 +561,14 @@ class StringLiteral(Literal[str]):
             raise ValueError(
                 f"Could not convert {self.value} into a {type_var}, scales differ {type_var.scale} <> {abs(dec.as_tuple().exponent)}"
             )
+
+    @to.register(BooleanType)
+    def _(self, type_var: BooleanType) -> Literal[bool]:
+        value_upper = self.value.upper()
+        if value_upper in ["TRUE", "FALSE"]:
+            return BooleanLiteral(value_upper == "TRUE")
+        else:
+            raise ValueError(f"Could not convert {self.value} into a {type_var}")
 
     def __repr__(self) -> str:
         return f"literal({repr(self.value)})"

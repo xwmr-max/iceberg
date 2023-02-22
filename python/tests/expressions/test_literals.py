@@ -73,6 +73,12 @@ def test_literal_from_none_error() -> None:
     assert "Invalid literal value: None" in str(e.value)
 
 
+def test_literal_from_nan_error() -> None:
+    with pytest.raises(ValueError) as e:
+        literal(float("nan"))
+    assert "Cannot create expression literal from NaN." in str(e.value)
+
+
 @pytest.mark.parametrize(
     "literal_class",
     [
@@ -89,10 +95,17 @@ def test_literal_from_none_error() -> None:
         BinaryLiteral,
     ],
 )
-def test_string_literal_with_none_value_error(literal_class: Type[PrimitiveType]) -> None:
+def test_literal_classes_with_none_type_error(literal_class: Type[PrimitiveType]) -> None:
     with pytest.raises(TypeError) as e:
         literal_class(None)
     assert "Invalid literal value: None" in str(e.value)
+
+
+@pytest.mark.parametrize("literal_class", [FloatLiteral, DoubleLiteral])
+def test_literal_classes_with_nan_value_error(literal_class: Type[PrimitiveType]) -> None:
+    with pytest.raises(ValueError) as e:
+        literal_class(float("nan"))
+    assert "Cannot create expression literal from NaN." in str(e.value)
 
 
 # Numeric
@@ -369,6 +382,20 @@ def test_string_to_decimal_literal() -> None:
 
     assert 3 == abs(decimal_lit.value.as_tuple().exponent)  # type: ignore
     assert Decimal("34.560").as_tuple() == decimal_lit.value.as_tuple()  # type: ignore
+
+
+def test_string_to_boolean_literal() -> None:
+    assert literal(True) == literal("true").to(BooleanType())
+    assert literal(True) == literal("True").to(BooleanType())
+    assert literal(False) == literal("false").to(BooleanType())
+    assert literal(False) == literal("False").to(BooleanType())
+
+
+def test_invalid_string_to_boolean_literal() -> None:
+    invalid_boolean_str = literal("unknown")
+    with pytest.raises(ValueError) as e:
+        _ = invalid_boolean_str.to(BooleanType())
+    assert "Could not convert unknown into a boolean" in str(e.value)
 
 
 # MISC
@@ -679,7 +706,7 @@ def test_invalid_decimal_conversions() -> None:
 def test_invalid_string_conversions() -> None:
     assert_invalid_conversions(
         literal("abc"),
-        [BooleanType(), FloatType(), DoubleType(), FixedType(1), BinaryType()],
+        [FloatType(), DoubleType(), FixedType(1), BinaryType()],
     )
 
 

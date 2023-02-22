@@ -17,7 +17,6 @@
 # pylint: disable=protected-access,redefined-outer-name
 import json
 import uuid
-from typing import Any, Dict
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -44,7 +43,6 @@ from pyiceberg.exceptions import (
 )
 from pyiceberg.partitioning import PartitionField, PartitionSpec
 from pyiceberg.schema import Schema
-from pyiceberg.serializers import ToOutputFile
 from pyiceberg.table.metadata import TableMetadataUtil, TableMetadataV2
 from pyiceberg.table.refs import SnapshotRef, SnapshotRefType
 from pyiceberg.table.snapshots import (
@@ -68,18 +66,13 @@ from pyiceberg.types import (
     NestedField,
     StringType,
 )
-from tests.conftest import LocalFileIO
 
 HIVE_CATALOG_NAME = "hive"
 HIVE_METASTORE_FAKE_URL = "thrift://unknown:9083"
 
 
 @pytest.fixture
-def hive_table(tmp_path_factory: pytest.TempPathFactory, example_table_metadata_v2: Dict[str, Any]) -> HiveTable:
-    metadata_path = str(tmp_path_factory.mktemp("metadata") / f"{uuid.uuid4()}.metadata.json")
-    metadata = TableMetadataV2(**example_table_metadata_v2)
-    ToOutputFile.table_metadata(metadata, LocalFileIO().new_output(str(metadata_path)), True)
-
+def hive_table(metadata_location: str) -> HiveTable:
     return HiveTable(
         tableName="new_tabl2e",
         dbName="default",
@@ -118,7 +111,7 @@ def hive_table(tmp_path_factory: pytest.TempPathFactory, example_table_metadata_
             "EXTERNAL": "TRUE",
             "transient_lastDdlTime": "1659092339",
             "table_type": "ICEBERG",
-            "metadata_location": metadata_path,
+            "metadata_location": metadata_location,
         },
         viewOriginalText=None,
         viewExpandedText=None,
@@ -703,4 +696,4 @@ def test_resolve_table_location_warehouse(hive_database: HiveDatabase) -> None:
     catalog._client.__enter__().get_database.return_value = hive_database
 
     location = catalog._resolve_table_location(None, "database", "table")
-    assert location == "/tmp/warehouse/database/table"
+    assert location == "/tmp/warehouse/database.db/table"
